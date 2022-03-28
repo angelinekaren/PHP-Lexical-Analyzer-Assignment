@@ -12,6 +12,14 @@ class LexicalAnalyzer:
             s = match.start()
             return s
 
+    # Find the end index of the matched keyword
+    def findIndexWordEnd(self, pattern, text):
+        # Find the index of the matched keyword according to the pattern
+        for match in re.finditer(pattern, text):
+            # Get index where the matched keyword end
+            s = match.end()
+            return s
+
     # Function for the output format
     def outputFormat(self, indexRow, indexCol, tokenClass=True, tokenValue=None):
         LINE = indexRow+1
@@ -25,7 +33,7 @@ class LexicalAnalyzer:
 
     # Function for the error output format
     def errorFormat(self, fileName, indexRow, indexCol, error_statement):
-        raise ValueError(f"{fileName} : {indexRow} : {indexCol} : {error_statement}")
+        raise ValueError(f"{fileName} : {indexRow+1} : {indexCol+1} : {error_statement}")
 
     # Opening Tag
     def openingTag(self, word, index):
@@ -70,7 +78,7 @@ class LexicalAnalyzer:
 
             # Raise error if there is no class name
             except:
-                self.outputFormat(file_name, index, self.findIndexWord(class_tag, sentence), "MISSING CLASS NAME")
+                self.errorFormat(file_name, index, self.findIndexWordEnd("^class", sentence), "MISSING CLASS NAME")
 
     # Function token
     def functionToken(self, word, splitted_words, sentence, index, indexWord):
@@ -94,47 +102,36 @@ class LexicalAnalyzer:
 
             # Raise error if there is no function name
             except:
-                self.outputFormat(file_name, index, self.findIndexWord(function_tag, sentence), "MISSING FUNCTION NAME")
+                self.errorFormat(file_name, index, self.findIndexWordEnd("^function", sentence), "MISSING FUNCTION NAME")
 
     # Variable token
     def variableToken(self, word, sentence, index):
         # Regex to find variable
         variable_tag = "\$[a-zA-Z]+"
 
+        # Find all match with the pattern and return as a list
         find = re.findall(variable_tag, word)
 
+        # If there is a match
         if len(find) != 0:
-            try:
-                for wordFind in find:
-                    wordFind = wordFind.replace("$", "\$")
-        
-                    # Append token for variable declaration ($)
-                    self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence), "variable")])
+            # Iterate through the list
+            for wordFind in find:
+                # Replace $ to \$ to escape regex special character
+                wordFind = self.replaceBacklash(wordFind)
+    
+                # Append token for variable declaration ($)
+                self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence), "variable")])
 
-                    # Search the variable identifier by searching the characters after the variable declaration ($)
-                    var_identifier = re.search(wordFind, word).group()[1:]
+                # Search the variable identifier by searching the characters after the variable declaration ($)
+                var_identifier = re.search(wordFind, word).group()[1:]
 
-                    # Append token for variable identifier 
-                    # +1 index to skip the variable declaration (start from the variable identifier)
-                    self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence)+1, "type-identifier", var_identifier)])
+                # Append token for variable identifier 
+                # +1 index to skip the variable declaration (start from the variable identifier)
+                self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence)+1, "type-identifier", var_identifier)])
 
-            except:
-                self.outputFormat(file_name, index, self.findIndexWord(variable_tag, sentence), "MISSING VARIABLE NAME")
-        # # Search word that matches the pattern
-        # if re.search(variable_tag, word):  
-        #     try:
-                
-                
-        #         # Search the variable identifier by searching the characters after the variable declaration ($)
-        #         var_identifier = re.search(variable_tag, word).group()[1:]
-
-        #         # Append token for variable identifier 
-        #         # +1 index to skip the variable declaration (start from the variable identifier)
-        #         self.tokens.append([self.outputFormat(index, self.findIndexWord(variable_tag, sentence)+1, "type-identifier", var_identifier)])
-
-        #     # Raise error if there is no variable name
-        #     except:
-        #         self.outputFormat(file_name, index, self.findIndexWord(variable_tag, sentence), "MISSING VARIABLE NAME")
+        # # Raise error if there is no variable name
+        # elif len(find) == 0:
+        #     self.errorFormat(file_name, index, self.findIndexWord("\$[^a-zA-Z]", sentence), "MISSING VARIABLE NAME")
 
     # Assign token
     def assign(self, word, sentence, index):
@@ -174,6 +171,7 @@ class LexicalAnalyzer:
             if i == '$' or i == '?':
                 # Replace it with an additional \ in the beginning to escape the special character ($ or ?)
                 text = text.replace(i, "\\" + i)
+                break
         return text
 
     # Function for string replacement
@@ -394,8 +392,8 @@ class LexicalAnalyzer:
                 self.closingCurlyBracket(word, sentences, index)
                 self.numbers(word, sentences, index)
                 self.echo(word, sentences, index) 
-                
-                # if strChecker is 1
+
+                  # if strChecker is 1
                 if strChecker == 1:
                     # Concatenate the word
                     strLit += " " + word
@@ -411,22 +409,14 @@ class LexicalAnalyzer:
                 elif '"' in word:
                     # If string literal is more than one word 
                     if re.search('"(.+)"', word) == None:
-                        # Concatenate the word
-                        strLit += " " + word 
-                        # If string literal is 2 words
-                        if re.search('"(.+)"', strLit):
-                            # Call function
-                            self.stringLiteral(strLit, sentences, index)
-                            # Reset strLit
-                            strLit = ''
-                        # If more than 2 words                    
-                        else:
-                            # Change strChecker to 1
-                            strChecker = 1
-                    # If string literal is exactly one word
-                    elif re.match('"(.+)"', word):
-                        self.stringLiteral(word, sentences, index)
-        
+                    # Change strChecker to 1
+                        strLit += ' ' + word
+                        strChecker = 1
+
+                # If string literal is exactly one word
+                elif re.match('"(.+)"', word):
+                    self.stringLiteral(word, sentences, index)
+                
                 # Handling single comment
                 # If true, it will continue searching for tokens
                 if self.singleComment(word):
@@ -445,7 +435,7 @@ class LexicalAnalyzer:
                         # Replace it with an additional \ in the beginning to escape the special character ($ or ?)
                         wordsss = word.replace(i, "\\" + i)
 
-                self.errorFormat(file_name, index+1, self.findIndexWord(wordsss, sentences)+1, "WRONG STRING FORMAT")
+                self.errorFormat(file_name, index, self.findIndexWord(wordsss, sentences), "WRONG STRING FORMAT")
                 
             # if oBracket > cBracket:
             #     self.outputFormat(file_name, index, indexWord, "MISSING CLOSING CURLY BRACKET")
@@ -453,12 +443,12 @@ class LexicalAnalyzer:
             #     self.outputFormat(file_name, index, indexWord, "MISSING OPENING CURLY BRACKET")
 
             # Find index for the last line in the file
-            indexCol = file_context.index(file_context[-1])+1
+            indexCol = file_context.index(file_context[-1])
 
             # If there is no closing tag
         if closingTagCheck != 1:
             # Raise value error 
-            self.errorFormat(file_name, indexCol, self.findIndexWord(word, sentences)+1, "MISSING CLOSING TAG")
+            self.errorFormat(file_name, indexCol, self.findIndexWord(word, sentences), "MISSING CLOSING TAG")
 
         return self.tokens
 
