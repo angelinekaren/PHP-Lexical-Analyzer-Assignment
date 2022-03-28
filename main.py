@@ -100,23 +100,41 @@ class LexicalAnalyzer:
     def variableToken(self, word, sentence, index):
         # Regex to find variable
         variable_tag = "\$[a-zA-Z]+"
-        
-        # Search word that matches the pattern
-        if re.search(variable_tag, word):  
+
+        find = re.findall(variable_tag, word)
+
+        if len(find) != 0:
             try:
-                # Append token for variable declaration ($)
-                self.tokens.append([self.outputFormat(index, self.findIndexWord(variable_tag, sentence), "variable")])
-                
-                # Search the variable identifier by searching the characters after the variable declaration ($)
-                var_identifier = re.search(variable_tag, word).group()[1:]
+                for wordFind in find:
+                    wordFind = wordFind.replace("$", "\$")
+        
+                    # Append token for variable declaration ($)
+                    self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence), "variable")])
 
-                # Append token for variable identifier 
-                # +1 index to skip the variable declaration (start from the variable identifier)
-                self.tokens.append([self.outputFormat(index, self.findIndexWord(variable_tag, sentence)+1, "type-identifier", var_identifier)])
+                    # Search the variable identifier by searching the characters after the variable declaration ($)
+                    var_identifier = re.search(wordFind, word).group()[1:]
 
-            # Raise error if there is no variable name
+                    # Append token for variable identifier 
+                    # +1 index to skip the variable declaration (start from the variable identifier)
+                    self.tokens.append([self.outputFormat(index, self.findIndexWord(wordFind, sentence)+1, "type-identifier", var_identifier)])
+
             except:
                 self.outputFormat(file_name, index, self.findIndexWord(variable_tag, sentence), "MISSING VARIABLE NAME")
+        # # Search word that matches the pattern
+        # if re.search(variable_tag, word):  
+        #     try:
+                
+                
+        #         # Search the variable identifier by searching the characters after the variable declaration ($)
+        #         var_identifier = re.search(variable_tag, word).group()[1:]
+
+        #         # Append token for variable identifier 
+        #         # +1 index to skip the variable declaration (start from the variable identifier)
+        #         self.tokens.append([self.outputFormat(index, self.findIndexWord(variable_tag, sentence)+1, "type-identifier", var_identifier)])
+
+        #     # Raise error if there is no variable name
+        #     except:
+        #         self.outputFormat(file_name, index, self.findIndexWord(variable_tag, sentence), "MISSING VARIABLE NAME")
 
     # Assign token
     def assign(self, word, sentence, index):
